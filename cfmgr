@@ -145,13 +145,13 @@ findStacks(params,function(err){
 					    	var startCount = subList[0];
 					    	var endCount;
 					    	if(subList.length > 1){
-					    		endCount = subList[1];
+					    		endCount = parseInt(subList[1]);
 					    	}
 					    	else {
-					    		endCount = subList[0];
+					    		endCount = parseInt(subList[0]);
 					    	}
 					    	for(var j=startCount;j<=endCount;j++){
-					    		if(j<0 || j>foundStacks.length){
+					    		if(j<=0 || j>foundStacks.length){
 					    			console.log("Invalid input..");
 					    			process.exit(1);
 					    		}
