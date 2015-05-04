@@ -1,6 +1,10 @@
 # cf-manager
 CloudFormation Stack Manager (to view / delete AWS CloudFormation Stacks)
 
+#Requirements
+
+- [NodeJS](http://nodejs.org/)
+
 #Installation/Setup
 
     git clone <this repo>
