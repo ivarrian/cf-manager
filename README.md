@@ -21,3 +21,7 @@ CloudFormation Stack Manager (to view / delete AWS CloudFormation Stacks)
 
     cfmgr --pattern foo-bar- --filterByStatus CREATE_COMPLETE --action delete
 The above command will list all stacks that start with "foo-bar-" and with status 'CREATE_COMPLETE' and will request input for deletion
+
+# Bugs
+
+Please report bugs [here](https://github.com/ivarrian/cf-manager/issues)
