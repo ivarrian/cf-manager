@@ -6,11 +6,11 @@ CloudFormation Stack Manager (to view / delete AWS CloudFormation Stacks)
     git clone <this repo>
     
 #Options
-- action : Acceptable values are 'list','delete'
-- region : Valid AWS Regions (more [here](http://docs.aws.amazon.com/general/latest/gr/rande.html))
-- filterByStatus : Valid CloudFormation Stack Statuses (more [here](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-describing-stacks.html))
-- pattern : A string pattern that the CloudFormation stack(s) begin with
-- help : Display a helpful usage message
+- action : (optional) Acceptable values are 'list','delete' . Default : 'list'
+- region : (optional) Valid AWS Regions (more [here](http://docs.aws.amazon.com/general/latest/gr/rande.html))
+- filterByStatus : (optional) Valid CloudFormation Stack Statuses (more [here](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-describing-stacks.html))
+- pattern : (optional) A string pattern that the name(s) of CloudFormation stack(s) begin with. If not specified, cf-manager will attempt to list all cloudformation stacks.  
+- help : (optional) Display a helpful usage message
 
 #Example usage
 
