@@ -14,8 +14,8 @@ CloudFormation Stack Manager (to view / delete AWS CloudFormation Stacks)
 - profile : (optional) Loads the profile from ~/.aws/credentials. If not specified, loads the 'default' profile. If For details on how to configure the profiles, see [here](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-multiple-profiles)
 - action : (optional) Acceptable values are 'list','delete' . Default : 'list'
 - region : (optional) Valid AWS Regions (more [here](http://docs.aws.amazon.com/general/latest/gr/rande.html))
-- filterByStatus : (optional) Valid CloudFormation Stack Statuses (more [here](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-describing-stacks.html)). Specify more than one status separated by commas.
-- pattern : (optional) A string pattern that the name(s) of CloudFormation stack(s) begin with. If not specified, cf-manager will attempt to list all cloudformation stacks.  
+- filterByStatus : (optional) Valid CloudFormation Stack Statuses (more [here](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-describing-stacks.html)). Specify more than one status separated by commas. If not specified, cf-manager will attempt to list stacks of all statuses. Please note that this may 
+- pattern : (optional) A string pattern that the name(s) of CloudFormation stack(s) begin with. If not specified, cf-manager will attempt to list all cloudformation stacks. **Warning: Not specifying a status may exceed the throttle rate for API requests**
 - help : (optional) Display a helpful usage message
 
 #Example usage
