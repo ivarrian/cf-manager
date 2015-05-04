@@ -6,6 +6,8 @@ var aws = require('aws-sdk');
 var argv = require('yargs').argv;
 var Table = require('cli-table');
 var fs = require('fs');
+var prompt = require('prompt');
+
 if(argv.hasOwnProperty('profile'))
 	var profileToUse = argv.profile;
 else
@@ -24,11 +26,33 @@ var table = new Table({
     head: ['','Name','Status','Creation Time']
   , colWidths: [5,50,20,50]
 });
+
+// Prompt Schema for input prompt
+var deleteListSchema = {
+    properties: {
+      deleteList: {
+     	description: "Enter a comma-separated list of stacks to delete (Example : 1-4,6,7)",
+        required: true
+      }
+    }
+  };
+
+var confirmationSchema = {
+    properties: {
+      confirmation: {
+     	description: "Confirm delete ? [yes/no]",
+        required: true
+      }
+    }
+  };
+
+var cf = new aws.CloudFormation({region:regionToUse});
+
 function usage()
 {
 	console.log("Usage");
 	console.log("---------------------------------------------------------");
-	console.log(process.argv[1] + " --action action [--profile profileName] [--region awsRegion] [--filterByStatus status] [--pattern pattern] [--help]");
+	console.log(process.argv[1] + " [--action action] [--profile profileName] [--region awsRegion] [--filterByStatus status] [--pattern pattern] [--help]");
 	console.log("action: Action to perform ,currently supported : list , delete");
 	console.log("profile: AWS profile to use, defaults to 'default' profile");
 	console.log("region: AWS region to use, defaults to 'ap-southeast-2'");
@@ -37,6 +61,38 @@ function usage()
 	console.log("pattern: Matching pattern, '*' wildcard supported");
 	console.log("help: Display this usage message");
 }
+var foundStacks = [];
+function findStacks(params,callback){
+	(function(params,foundStacks,callback) {
+          cf.listStacks(params,function(err,res){
+		if(err){
+			console.log(err);
+			callback(err);
+		}
+		else {
+			if(typeof res.StackSummaries !== 'undefined'){
+				for(var i=0;i<res.StackSummaries.length;i++){
+					if(argv.hasOwnProperty('pattern')){
+					if(res.StackSummaries[i].StackName.match(argv.pattern) !== null){
+							foundStacks.push(res.StackSummaries[i]);
+						}
+					}
+					else{
+						foundStacks.push(res.StackSummaries[i]);
+					}
+				}	
+			}
+			if(typeof res.NextToken !== 'undefined'){
+				params.NextToken = res.NextToken;
+				findStacks(params,callback);
+			}
+			else{
+				callback(null);
+			}
+		}
+		});
+     })(params,foundStacks,callback);
+}
 
 if(argv.hasOwnProperty('help')){
 	usage();
@@ -44,11 +100,10 @@ if(argv.hasOwnProperty('help')){
 }
 
 if(!argv.hasOwnProperty('action')){
-	console.log("Please specify an action. Run "+ process.argv[1] +" --help for usage.");
-	process.exit(1);
+	argv.action = 'list';
 }
 
-var cf = new aws.CloudFormation({region:regionToUse});
+
 
 var params = {};
 
@@ -57,39 +112,87 @@ if(argv.hasOwnProperty('filterByStatus')){
 	var filters = argv.filterByStatus.split(",");
 	params.StackStatusFilter = filters;
 }
-var foundStacks = [];
-cf.listStacks(params, function(err,data){
-	if(err)
-	{
+
+findStacks(params,function(err){
+	if(err){
 		console.log(err);
 	}
-	else {
-		if(typeof data.StackSummaries !== 'undefined'){
-			for(var i=0;i<data.StackSummaries.length;i++){
-				if(argv.hasOwnProperty('pattern')){
-					if(data.StackSummaries[i].StackName.match(argv.pattern) !== null){
-						foundStacks.push(data.StackSummaries[i]);
-					}
-				}
-				else{
-						foundStacks.push(data.StackSummaries[i]);
-				}
-			}
-			var numCounter =0;
-			console.log("Number of stacks found : "+foundStacks.length);
+	else{
+		var numCounter =0;
+		if(foundStacks.length < 1){
+			console.log("No stacks found.");
+			process.exit(1);
+		}
+		console.log("Number of stacks found : "+foundStacks.length);
 			for(var i=0;i<foundStacks.length;i++){
 				table.push([++numCounter,foundStacks[i].StackName,foundStacks[i].StackStatus,foundStacks[i].CreationTime]);
 			}
-			console.log(table.toString());
-			/*switch(argv.action){
+		console.log(table.toString());
+		switch(argv.action){
 				case 'list':
 					process.exit(0);
 					break;
 				case 'delete':
+					var deleteIndex = [];
+					prompt.start();
+					prompt.message = "";
+					prompt.delimiter="";
+				 	prompt.get(deleteListSchema, function (err, result) {
+					    if (err) { return onErr(err); }
+					    var deleteList = result.deleteList.split(",");
+					    for(var i=0; i<deleteList.length;i++)
+					    {
+					    	var subList = deleteList[i].split("-");
+					    	var startCount = subList[0];
+					    	var endCount;
+					    	if(subList.length > 1){
+					    		endCount = subList[1];
+					    	}
+					    	else {
+					    		endCount = subList[0];
+					    	}
+					    	for(var j=startCount;j<=endCount;j++){
+					    		if(j<0 || j>foundStacks.length){
+					    			console.log("Invalid input..");
+					    			process.exit(1);
+					    		}
+					    		deleteIndex.push(j);
+					    	}
+					    }
+					    console.log("Will delete the following stacks...");
+					    console.log("------------------------------------");
+					    for(var i=0;i<deleteIndex[i];i++){
+					    	console.log(table[deleteIndex[i]-1][1]);
+					    }
+					    console.log("------------------------------------");
+					    prompt.get(confirmationSchema, function (err, result) {
+					    	if(err) {return onErr(err); }
+					    	switch(result.confirmation){
+					    		case 'yes':
+					    			for(var i=0; i< deleteIndex[i];i++){
+					    				var params = {
+  											StackName: table[deleteIndex[i]-1][1]
+										};
+										(function(params) {
+										cf.deleteStack(params,function(err,data){
+											if(err){
+												console.log("Error deleting "+params.StackName);
+											}
+											else {
+												console.log("Deleted "+params.StackName+" ...");
+											}
+										})})(params);
+					    			}
+					    			break;
+					    		case 'no':
+					    			process.exit(0);
+					    			break;
+					    	}
+					    });
+				  	});
 
+					break;
 
-			}*/
-			
 		}
 	}
 });
