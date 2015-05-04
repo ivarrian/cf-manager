@@ -4,6 +4,7 @@ CloudFormation Stack Manager (to view / delete AWS CloudFormation Stacks)
 #Installation/Setup
 
     git clone <this repo>
+    npm install
     
 #Options
 - action : (optional) Acceptable values are 'list','delete' . Default : 'list'
