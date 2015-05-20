@@ -69,18 +69,26 @@ function findStacks(params,callback){
 			callback(err);
 		}
 		else {
-			if(typeof res.StackSummaries !== 'undefined'){
-				for(var i=0;i<res.StackSummaries.length;i++){
-					if(argv.hasOwnProperty('pattern')){
-					if(res.StackSummaries[i].StackName.match(argv.pattern) !== null){
-							foundStacks.push(res.StackSummaries[i]);
-						}
-					}
-					else{
-						foundStacks.push(res.StackSummaries[i]);
-					}
-				}	
-			}
+                    if (typeof res.StackSummaries !== 'undefined') {
+                        for (var i = 0; i < res.StackSummaries.length; i++) {
+                            // if we want to list stacks to delete, then
+                            // any stack that is in DELETE_IN_PROGRESS or DELETE_COMPLETE
+                            // should be skipped in the listings
+                            if (argv.action === 'delete') {
+                                if (res.StackSummaries[i].StackStatus.match(/^DELETE_(IN_PROGRESS|COMPLETE)$/)) {
+                                    continue;
+                                }
+                            }
+                            if(argv.hasOwnProperty('pattern')){
+                                if(res.StackSummaries[i].StackName.match(argv.pattern) !== null){
+                                    foundStacks.push(res.StackSummaries[i]);
+                                }
+                            }
+                            else{
+                                foundStacks.push(res.StackSummaries[i]);
+                            }
+                        }
+                    }
 			if(typeof res.NextToken !== 'undefined'){
 				params.NextToken = res.NextToken;
 				findStacks(params,callback);
@@ -111,6 +119,7 @@ if(argv.hasOwnProperty('filterByStatus')){
 	var filters = argv.filterByStatus.split(",");
 	params.StackStatusFilter = filters;
 }
+
 
 findStacks(params,function(err){
 	if(err){
