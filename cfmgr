@@ -59,7 +59,7 @@ function usage()
 	console.log("filterByStatus: Filter by AWS CloudFormation status");
 	console.log("pattern: Matching pattern, '*' wildcard supported");
 	console.log("   N.B. '' quotes are required for wildcards to prevent the shell from interpolating them");
-	console.log("   e.g. ./cfmgr --pattern 'myproject-*' to list all the stacks with the prefix of myproject-");
+	console.log("   e.g. ./cfmgr --pattern 'myproject-.*' to list all the stacks with the prefix of myproject-");
 	console.log("help: Display this usage message");
 }
 var foundStacks = [];
