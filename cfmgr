@@ -7,6 +7,13 @@ var argv = require('yargs').argv;
 var Table = require('cli-table');
 var fs = require('fs');
 var prompt = require('prompt');
+var events = require('events');
+var app = new events.EventEmitter();
+
+app.on('quit', function() {
+    console.log("Quitting");
+    process.exit(0);
+});
 
 if(argv.hasOwnProperty('profile'))
 	var profileToUse = argv.profile;
@@ -31,7 +38,7 @@ var table = new Table({
 var deleteListSchema = {
     properties: {
       deleteList: {
-     	description: "Enter a comma-separated list of stacks to delete (Example : 1-4,6,7)",
+     	description: "Enter a comma-separated list of stacks to delete (Example : 1-4,6,7), or q to quit.",
         required: true
       }
     }
@@ -150,6 +157,9 @@ findStacks(params,function(err){
 				 	prompt.get(deleteListSchema, function (err, result) {
 					    if (err) { return onErr(err); }
 					    var deleteList = result.deleteList.split(",");
+                                            if (deleteList[0] === 'q') {
+                                                app.emit('quit');
+                                            }
 					    for(var i=0; i<deleteList.length;i++)
 					    {
 					    	var subList = deleteList[i].split("-");
@@ -206,3 +216,12 @@ findStacks(params,function(err){
 		}
 	}
 });
+
+process.on('SIGINT', function() {
+    console.log("Caught interrupt signal, exiting.");
+    process.exit(0);
+});
+
+function onErr(err) {
+    console.log("Error encountered: ", err, err.stack);
+};
