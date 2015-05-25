@@ -7,6 +7,13 @@ var argv = require('yargs').argv;
 var Table = require('cli-table');
 var fs = require('fs');
 var prompt = require('prompt');
+var events = require('events');
+var app = new events.EventEmitter();
+
+app.on('quit', function() {
+    console.log("Quitting");
+    process.exit(0);
+});
 
 if(argv.hasOwnProperty('profile'))
 	var profileToUse = argv.profile;
@@ -31,7 +38,7 @@ var table = new Table({
 var deleteListSchema = {
     properties: {
       deleteList: {
-     	description: "Enter a comma-separated list of stacks to delete (Example : 1-4,6,7)",
+     	description: "Enter a comma-separated list of stacks to delete (Example : 1-4,6,7), or q to quit.",
         required: true
       }
     }
@@ -58,6 +65,8 @@ function usage()
 	console.log("region: AWS region to use, defaults to 'ap-southeast-2'");
 	console.log("filterByStatus: Filter by AWS CloudFormation status");
 	console.log("pattern: Matching pattern, '*' wildcard supported");
+	console.log("   N.B. '' quotes are required for wildcards to prevent the shell from interpolating them");
+	console.log("   e.g. ./cfmgr --pattern 'myproject-.*' to list all the stacks with the prefix of myproject-");
 	console.log("help: Display this usage message");
 }
 var foundStacks = [];
@@ -69,18 +78,26 @@ function findStacks(params,callback){
 			callback(err);
 		}
 		else {
-			if(typeof res.StackSummaries !== 'undefined'){
-				for(var i=0;i<res.StackSummaries.length;i++){
-					if(argv.hasOwnProperty('pattern')){
-					if(res.StackSummaries[i].StackName.match(argv.pattern) !== null){
-							foundStacks.push(res.StackSummaries[i]);
-						}
-					}
-					else{
-						foundStacks.push(res.StackSummaries[i]);
-					}
-				}	
-			}
+                    if (typeof res.StackSummaries !== 'undefined') {
+                        for (var i = 0; i < res.StackSummaries.length; i++) {
+                            // if we want to list stacks to delete, then
+                            // any stack that is in DELETE_IN_PROGRESS or DELETE_COMPLETE
+                            // should be skipped in the listings
+                            if (argv.action === 'delete') {
+                                if (res.StackSummaries[i].StackStatus.match(/^DELETE_(IN_PROGRESS|COMPLETE)$/)) {
+                                    continue;
+                                }
+                            }
+                            if(argv.hasOwnProperty('pattern')){
+                                if(res.StackSummaries[i].StackName.match(argv.pattern) !== null){
+                                    foundStacks.push(res.StackSummaries[i]);
+                                }
+                            }
+                            else{
+                                foundStacks.push(res.StackSummaries[i]);
+                            }
+                        }
+                    }
 			if(typeof res.NextToken !== 'undefined'){
 				params.NextToken = res.NextToken;
 				findStacks(params,callback);
@@ -112,6 +129,7 @@ if(argv.hasOwnProperty('filterByStatus')){
 	params.StackStatusFilter = filters;
 }
 
+
 findStacks(params,function(err){
 	if(err){
 		console.log(err);
@@ -139,6 +157,9 @@ findStacks(params,function(err){
 				 	prompt.get(deleteListSchema, function (err, result) {
 					    if (err) { return onErr(err); }
 					    var deleteList = result.deleteList.split(",");
+                                            if (deleteList[0] === 'q') {
+                                                app.emit('quit');
+                                            }
 					    for(var i=0; i<deleteList.length;i++)
 					    {
 					    	var subList = deleteList[i].split("-");
@@ -195,3 +216,12 @@ findStacks(params,function(err){
 		}
 	}
 });
+
+process.on('SIGINT', function() {
+    console.log("Caught interrupt signal, exiting.");
+    process.exit(0);
+});
+
+function onErr(err) {
+    console.log("Error encountered: ", err, err.stack);
+};
