@@ -115,20 +115,21 @@ if(argv.hasOwnProperty('help')){
 	process.exit(0);
 }
 
+var params = {};
+
 if(!argv.hasOwnProperty('action')){
 	argv.action = 'list';
 }
-
-
-
-var params = {};
-
+else {
+  if(argv.action == 'delete' && !argv.hasOwnProperty('filterByStatus')){
+    params.StackStatusFilter = [ 'CREATE_IN_PROGRESS','CREATE_FAILED','CREATE_COMPLETE','ROLLBACK_IN_PROGRESS','ROLLBACK_FAILED','ROLLBACK_COMPLETE','DELETE_FAILED','UPDATE_IN_PROGRESS','UPDATE_COMPLETE_CLEANUP_IN_PROGRESS','UPDATE_COMPLETE','UPDATE_ROLLBACK_IN_PROGRESS','UPDATE_ROLLBACK_FAILED','UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS','UPDATE_ROLLBACK_COMPLETE' ]
+  }
+}
 
 if(argv.hasOwnProperty('filterByStatus')){
 	var filters = argv.filterByStatus.split(",");
 	params.StackStatusFilter = filters;
 }
-
 
 findStacks(params,function(err){
 	if(err){
