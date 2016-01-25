@@ -216,7 +216,7 @@ rFindStacks(params,foundStacks,function(err){
   											StackName: table[deleteIndex[i]-1][1]
 										};
 										(function(params) {
-										cf.deleteStack(params,function(err,data){
+										_cf.deleteStack(params,function(err,data){
 											if(err){
 												console.log("Error deleting "+params.StackName);
 											}
