@@ -3,11 +3,13 @@
 'use strict';
 
 var aws = require('aws-sdk');
+var HttpsProxyAgent = require('https-proxy-agent');
 var argv = require('yargs').argv;
 var Table = require('cli-table');
 var fs = require('fs');
 var prompt = require('prompt');
 var events = require('events');
+var Spinner = require('cli-spinner').Spinner;
 var app = new events.EventEmitter();
 
 app.on('quit', function() {
@@ -22,17 +24,32 @@ else
 var credentials = new aws.SharedIniFileCredentials({profile: profileToUse});
 aws.config.credentials = credentials;
 
+if (typeof process.env.https_proxy !== 'undefined') {
+  aws.config.update({
+    httpOptions: {
+      agent: new HttpsProxyAgent(process.env.https_proxy)
+    }
+  });
+}
+
 if(argv.hasOwnProperty('region'))
 	var regionToUse = argv.region;
 else
 	var regionToUse = 'ap-southeast-2';
 var ec2 = new aws.EC2({region: regionToUse});
 
+/**********************************************
+CLI Table Configuration
+**********************************************/
 var constructed=[];
 var table = new Table({
     head: ['','Name','Status','Creation Time']
   , colWidths: [5,50,20,50]
 });
+
+/***********************************************
+Input Schema Configuration
+**********************************************/
 
 // Prompt Schema for input prompt
 var deleteListSchema = {
@@ -53,7 +70,15 @@ var confirmationSchema = {
     }
   };
 
-var cf = new aws.CloudFormation({region:regionToUse});
+/***************************************
+Spinner Configuration
+***************************************/
+var spinner = new Spinner('');
+spinner.setSpinnerString(19);
+
+
+
+var _cf = new aws.CloudFormation({region:regionToUse});
 
 function usage()
 {
@@ -70,44 +95,51 @@ function usage()
 	console.log("help: Display this usage message");
 }
 var foundStacks = [];
-function findStacks(params,callback){
-	(function(params,foundStacks,callback) {
-          cf.listStacks(params,function(err,res){
-		if(err){
-			console.log(err);
-			callback(err);
-		}
-		else {
-                    if (typeof res.StackSummaries !== 'undefined') {
-                        for (var i = 0; i < res.StackSummaries.length; i++) {
-                            // if we want to list stacks to delete, then
-                            // any stack that is in DELETE_IN_PROGRESS or DELETE_COMPLETE
-                            // should be skipped in the listings
-                            if (argv.action === 'delete') {
-                                if (res.StackSummaries[i].StackStatus.match(/^DELETE_(IN_PROGRESS|COMPLETE)$/)) {
-                                    continue;
-                                }
-                            }
-                            if(argv.hasOwnProperty('pattern')){
-                                if(res.StackSummaries[i].StackName.match(argv.pattern) !== null){
-                                    foundStacks.push(res.StackSummaries[i]);
-                                }
-                            }
-                            else{
-                                foundStacks.push(res.StackSummaries[i]);
-                            }
-                        }
-                    }
-			if(typeof res.NextToken !== 'undefined'){
-				params.NextToken = res.NextToken;
-				findStacks(params,callback);
+
+if(!argv.hasOwnProperty('action')){
+	argv.action = 'list';
+}
+
+
+/*
+ Recursive CF stack finder
+*/
+function rFindStacks(params,stackars,callback){
+	(function(params,stackars,callback){
+		_cf.describeStacks(params,function(err,res){
+			if(err){
+				console.log(err);
+				callback(err);
 			}
-			else{
-				callback(null);
+			else {
+
+				// check if CloudFormation stack exist in result set
+				if(typeof res.Stacks !== 'undefined'){
+					res.Stacks.forEach(function(stack){
+            if (argv.action === 'delete') {
+                if (!stack.StackStatus.match(/^DELETE_(IN_PROGRESS|COMPLETE)$/) && stack.StackName.match(argv.pattern) !== null) {
+                  stackars.push(stack);
+                }
+            }
+            else {
+              if(stack.StackName.match(argv.pattern) !== null)
+                stackars.push(stack);
+            }
+
+					});
+				}
+				// more ASGs with NextToken
+				if(typeof res.NextToken !== 'undefined'){
+					params.NextToken = res.NextToken;
+					rFindStacks(params,stackars,callback);
+				}
+				else {
+
+					callback(null);
+				}
 			}
-		}
 		});
-     })(params,foundStacks,callback);
+	})(params,stackars,callback);
 }
 
 if(argv.hasOwnProperty('help')){
@@ -117,25 +149,14 @@ if(argv.hasOwnProperty('help')){
 
 var params = {};
 
-if(!argv.hasOwnProperty('action')){
-	argv.action = 'list';
-}
-else {
-  if(argv.action == 'delete' && !argv.hasOwnProperty('filterByStatus')){
-    params.StackStatusFilter = [ 'CREATE_IN_PROGRESS','CREATE_FAILED','CREATE_COMPLETE','ROLLBACK_IN_PROGRESS','ROLLBACK_FAILED','ROLLBACK_COMPLETE','DELETE_FAILED','UPDATE_IN_PROGRESS','UPDATE_COMPLETE_CLEANUP_IN_PROGRESS','UPDATE_COMPLETE','UPDATE_ROLLBACK_IN_PROGRESS','UPDATE_ROLLBACK_FAILED','UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS','UPDATE_ROLLBACK_COMPLETE' ]
-  }
-}
-
-if(argv.hasOwnProperty('filterByStatus')){
-	var filters = argv.filterByStatus.split(",");
-	params.StackStatusFilter = filters;
-}
-
-findStacks(params,function(err){
+spinner.start();
+rFindStacks(params,foundStacks,function(err){
+  spinner.stop();
 	if(err){
 		console.log(err);
 	}
 	else{
+
 		var numCounter =0;
 		if(foundStacks.length < 1){
 			console.log("No stacks found.");
@@ -195,7 +216,7 @@ findStacks(params,function(err){
   											StackName: table[deleteIndex[i]-1][1]
 										};
 										(function(params) {
-										cf.deleteStack(params,function(err,data){
+										_cf.deleteStack(params,function(err,data){
 											if(err){
 												console.log("Error deleting "+params.StackName);
 											}
