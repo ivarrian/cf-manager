@@ -23,6 +23,7 @@
   "dependencies": {
     "aws-sdk": "^2.1.26",
     "cli-table": "^0.3.1",
+    "https-proxy-agent": "^2.2.0",
     "prompt": "^0.2.14",
     "yargs": "^3.8.0"
   }
